@@ -24,10 +24,6 @@ class FeedEndpoint(HTTPEndpoint, ABC):
     def get_items(self) -> Iterable:
         ...
 
-    @abstractmethod
-    def item_link(self, item: Any) -> str:
-        ...
-
     async def get(self, request: Request) -> StreamingResponse:
         try:
             obj = await self.get_object(request)
@@ -47,12 +43,15 @@ class FeedEndpoint(HTTPEndpoint, ABC):
     async def get_object(self, request: Request, *args: Any, **kwargs: Any) -> Any:
         ...
 
+    def item_link(self, item: Any) -> str:
+        return getattr(item, "link", self.link)
+
     def item_title(self, item: Any) -> str:
         # Titles should be double escaped by default
-        return escape(str(item))
+        return getattr(item, "title", None) or escape(str(item))
 
     def item_description(self, item: Any) -> str:
-        return str(item)
+        return getattr(item, "description", None) or str(item)
 
     def item_enclosures(self, item: Any) -> Iterable[Enclosure]:
         enc_url = self._get_dynamic_attr("item_enclosure_url", item)
