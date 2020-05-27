@@ -1,0 +1,7 @@
+# Core
+starlette>=0.13.0
+
+# Development
+flake8
+black
+isort
