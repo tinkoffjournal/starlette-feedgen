@@ -4,7 +4,7 @@ adapted from [Django syndication feed framework](https://docs.djangoproject.com/
 
 ## Installation
 ```sh
-pip install starlette_feedgen
+pip install starlette-feedgen
 ```
 
 ## Usage
