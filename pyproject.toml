@@ -4,14 +4,22 @@ build-backend = "flit_core.buildapi"
 
 [tool.flit.metadata]
 module = "starlette_feedgen"
+dist-name = "starlette-feedgen"
 requires-python = ">=3.6"
 requires = ["starlette >=0.13.0"]
 author = "Arseny Gabdullin"
 author-email = "a.gabdullin@tinkoff.ru"
+home-page = "https://github.com/tinkoffjournal/starlette-feedgen"
 description-file = "README.md"
 classifiers = [
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Internet :: WWW/HTTP",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
 ]
 
 [tool.black]
