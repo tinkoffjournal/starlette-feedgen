@@ -3,7 +3,7 @@ from calendar import timegm
 from html import escape
 from http import HTTPStatus
 from io import BytesIO
-from typing import Any, Dict, Iterable, Optional, Type
+from typing import Any, AsyncIterable, Dict, Iterable, Optional, Type
 
 from starlette.endpoints import HTTPEndpoint
 from starlette.exceptions import HTTPException
@@ -126,40 +126,49 @@ class FeedEndpoint(HTTPEndpoint, ABC):
         )
 
         items = await run_async_or_thread(self.get_items)
-        for item in items:
-            title = self._get_dynamic_attr("item_title", item)
-            description = self._get_dynamic_attr("item_description", item)
-            link = add_domain(
-                self.domain, self._get_dynamic_attr("item_link", item), request_is_secure,
-            )
-            enclosures = self._get_dynamic_attr("item_enclosures", item)
-            author_name = self._get_dynamic_attr("item_author_name", item)
-            if author_name is not None:
-                author_email = self._get_dynamic_attr("item_author_email", item)
-                author_link = self._get_dynamic_attr("item_author_link", item)
-            else:
-                author_email = author_link = None
-
-            pubdate = self._get_dynamic_attr("item_pubdate", item)
-            updateddate = self._get_dynamic_attr("item_updateddate", item)
-            extra_kwargs = await run_async_or_thread(self.item_extra_kwargs, item)
-            feed.add_item(
-                title=title,
-                link=link,
-                description=description,
-                unique_id=self._get_dynamic_attr("item_guid", item, link),
-                unique_id_is_permalink=self._get_dynamic_attr("item_guid_is_permalink", item),
-                enclosures=enclosures,
-                pubdate=pubdate,
-                updateddate=updateddate,
-                author_name=author_name,
-                author_email=author_email,
-                author_link=author_link,
-                categories=self._get_dynamic_attr("item_categories", item),
-                item_copyright=self._get_dynamic_attr("item_copyright", item),
-                **extra_kwargs,
-            )
+        if isinstance(items, AsyncIterable):
+            async for item in items:
+                await self._populate_feed(feed, item, request_is_secure)
+        else:
+            for item in items:
+                await self._populate_feed(feed, item, request_is_secure)
         return feed
+
+    async def _populate_feed(
+        self, feed: SyndicationFeed, item: Any, request_is_secure: bool = True
+    ) -> None:
+        title = self._get_dynamic_attr("item_title", item)
+        description = self._get_dynamic_attr("item_description", item)
+        link = add_domain(
+            self.domain, self._get_dynamic_attr("item_link", item), request_is_secure,
+        )
+        enclosures = self._get_dynamic_attr("item_enclosures", item)
+        author_name = self._get_dynamic_attr("item_author_name", item)
+        if author_name is not None:
+            author_email = self._get_dynamic_attr("item_author_email", item)
+            author_link = self._get_dynamic_attr("item_author_link", item)
+        else:
+            author_email = author_link = None
+
+        pubdate = self._get_dynamic_attr("item_pubdate", item)
+        updateddate = self._get_dynamic_attr("item_updateddate", item)
+        extra_kwargs = await run_async_or_thread(self.item_extra_kwargs, item)
+        feed.add_item(
+            title=title,
+            link=link,
+            description=description,
+            unique_id=self._get_dynamic_attr("item_guid", item, link),
+            unique_id_is_permalink=self._get_dynamic_attr("item_guid_is_permalink", item),
+            enclosures=enclosures,
+            pubdate=pubdate,
+            updateddate=updateddate,
+            author_name=author_name,
+            author_email=author_email,
+            author_link=author_link,
+            categories=self._get_dynamic_attr("item_categories", item),
+            item_copyright=self._get_dynamic_attr("item_copyright", item),
+            **extra_kwargs,
+        )
 
 
 class FeedDoesNotExist(Exception):
