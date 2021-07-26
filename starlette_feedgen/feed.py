@@ -125,13 +125,18 @@ class FeedEndpoint(HTTPEndpoint, ABC):
         )
 
         items = await run_async_or_thread(self.get_items)
+        await self._process_items(feed, items, request_is_secure)
+        return feed
+
+    async def _process_items(
+        self, feed: SyndicationFeed, items: Iterable[Any], request_is_secure: bool
+    ) -> None:
         if isinstance(items, AsyncIterable):
             async for item in items:
                 await self._populate_feed(feed, item, request_is_secure)
         else:
             for item in items:
                 await self._populate_feed(feed, item, request_is_secure)
-        return feed
 
     async def _populate_feed(
         self, feed: SyndicationFeed, item: Any, request_is_secure: bool = True
