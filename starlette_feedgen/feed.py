@@ -11,7 +11,6 @@ from starlette.exceptions import HTTPException
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
-
 from .generator import DefaultFeed, Enclosure, SyndicationFeed
 from .utils import add_domain, http_date
 
@@ -21,6 +20,11 @@ class FeedEndpoint(HTTPEndpoint, ABC):
     language: Optional[str] = None
     domain: Optional[str] = None
     link: str = "/"
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.use_cached_items = False
+        self.cached_items = []
 
     @abstractmethod
     async def get_items(self) -> Iterable:
@@ -139,16 +143,20 @@ class FeedEndpoint(HTTPEndpoint, ABC):
             feed_copyright=await self._get_dynamic_attr("feed_copyright", obj),
             feed_guid=await self._get_dynamic_attr("feed_guid", obj),
             ttl=await self._get_dynamic_attr("ttl", obj),
+            use_cached_items=self.use_cached_items,
             **feed_extra_kwargs,
         )
 
-        items = await self.get_items()
-        if isinstance(items, AsyncIterable):
-            async for item in items:
-                await self._populate_feed(feed, item, request_is_secure)
+        if not self.use_cached_items:
+            items = await self.get_items()
+            if isinstance(items, AsyncIterable):
+                async for item in items:
+                    await self._populate_feed(feed, item, request_is_secure)
+            else:
+                for item in items:
+                    await self._populate_feed(feed, item, request_is_secure)
         else:
-            for item in items:
-                await self._populate_feed(feed, item, request_is_secure)
+            feed.add_cached_items(self.cached_items)
         return feed
 
     async def _populate_feed(
