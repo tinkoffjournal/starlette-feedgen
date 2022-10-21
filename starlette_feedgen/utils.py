@@ -1,35 +1,145 @@
 import datetime
 import email
 import re
-from asyncio.coroutines import iscoroutinefunction
 from email.utils import formatdate
 from typing import Any, Callable, Union
 from urllib.parse import quote, urlparse
-from xml.sax.saxutils import XMLGenerator
-
-from starlette.concurrency import run_in_threadpool
+from xml.sax.saxutils import quoteattr, escape
 
 
 class UnserializableContentError(ValueError):
     pass
 
 
-class SimplerXMLGenerator(XMLGenerator):
-    def addQuickElement(self, name: str, contents: str = None, attrs: dict = None) -> None:
+class AsyncXMLGenerator:
+    def __init__(self, out, encoding="iso-8859-1", short_empty_elements=False):
+        self._locator = None
+        self._write = out.write
+        self._flush = out.flush
+        self._ns_contexts = [{}]  # contains uri -> prefix dicts
+        self._current_context = self._ns_contexts[-1]
+        self._undeclared_ns_maps = []
+        self._encoding = encoding
+        self._short_empty_elements = short_empty_elements
+        self._pending_start_element = False
+
+    def _qname(self, name):
+        """Builds a qualified name from a (ns_url, localname) pair"""
+        if name[0]:
+            # Per http://www.w3.org/XML/1998/namespace, The 'xml' prefix is
+            # bound by definition to http://www.w3.org/XML/1998/namespace.  It
+            # does not need to be declared and will not usually be found in
+            # self._current_context.
+            if 'http://www.w3.org/XML/1998/namespace' == name[0]:
+                return 'xml:' + name[1]
+            # The name is in a non-empty namespace
+            prefix = self._current_context[name[0]]
+            if prefix:
+                # If it is not the default namespace, prepend the prefix
+                return prefix + ":" + name[1]
+        # Return the unqualified name
+        return name[1]
+
+    async def _finish_pending_start_element(self):
+        if self._pending_start_element:
+            await self._write('>')
+            self._pending_start_element = False
+
+    # ContentHandler methods
+
+    async def startDocument(self):
+        await self._write('<?xml version="1.0" encoding="%s"?>\n' %
+                    self._encoding)
+
+    async def endDocument(self):
+        await self._flush()
+
+    def startPrefixMapping(self, prefix, uri):
+        self._ns_contexts.append(self._current_context.copy())
+        self._current_context[uri] = prefix
+        self._undeclared_ns_maps.append((prefix, uri))
+
+    def endPrefixMapping(self):
+        self._current_context = self._ns_contexts[-1]
+        del self._ns_contexts[-1]
+
+    async def startElement(self, name, attrs):
+        await self._finish_pending_start_element()
+        await self._write('<' + name)
+        for (name, value) in attrs.items():
+            await self._write(' %s=%s' % (name, quoteattr(value)))
+        if self._short_empty_elements:
+            self._pending_start_element = True
+        else:
+            await self._write(">")
+
+    async def endElement(self, name):
+        if self._pending_start_element:
+            await self._write('/>')
+            self._pending_start_element = False
+        else:
+            await self._write('</%s>' % name)
+
+    async def startElementNS(self, name, attrs):
+        await self._finish_pending_start_element()
+        await self._write('<' + self._qname(name))
+
+        for prefix, uri in self._undeclared_ns_maps:
+            if prefix:
+                await self._write(' xmlns:%s="%s"' % (prefix, uri))
+            else:
+                await self._write(' xmlns="%s"' % uri)
+        self._undeclared_ns_maps = []
+
+        for (name, value) in attrs.items():
+            await self._write(' %s=%s' % (self._qname(name), quoteattr(value)))
+        if self._short_empty_elements:
+            self._pending_start_element = True
+        else:
+            await self._write(">")
+
+    async def endElementNS(self, name):
+        if self._pending_start_element:
+            await self._write('/>')
+            self._pending_start_element = False
+        else:
+            await self._write('</%s>' % self._qname(name))
+
+    async def characters(self, content):
+        if content:
+            await self._finish_pending_start_element()
+            if not isinstance(content, str):
+                content = str(content, self._encoding)
+            await self._write(escape(content))
+
+    async def ignorableWhitespace(self, content):
+        if content:
+            await self._finish_pending_start_element()
+            if not isinstance(content, str):
+                content = str(content, self._encoding)
+            await self._write(content)
+
+    async def processingInstruction(self, target, data):
+        await self._finish_pending_start_element()
+        await self._write('<?%s %s?>' % (target, data))
+
+
+class SimplerXMLGenerator(AsyncXMLGenerator):
+    async def addQuickElement(self, name: str, contents: str = None, attrs: dict = None) -> None:
         """Convenience method for adding an element with no children"""
         if attrs is None:
             attrs = {}
-        self.startElement(name, attrs)
+        await self.startElement(name, attrs)
         if contents is not None:
-            self.characters(contents)
-        self.endElement(name)
+            await self.characters(contents)
+        await self.endElement(name)
 
-    def characters(self, content: str) -> None:
+    async def characters(self, content: str) -> None:
         if content and re.search(r"[\x00-\x08\x0B-\x0C\x0E-\x1F]", content):
             # Fail loudly when content has control chars (unsupported in XML 1.0)
             # See http://www.w3.org/International/questions/qa-controls
             raise UnserializableContentError("Control characters are not supported in XML 1.0")
-        XMLGenerator.characters(self, content)
+        await super().characters(content)
 
 
 def iri_to_uri(iri: str) -> str:
@@ -111,9 +221,3 @@ def add_domain(domain: str, url: str, secure: bool = False) -> str:
     elif not url.startswith(("http://", "https://", "mailto:")):
         url = iri_to_uri("%s://%s%s" % (protocol, domain, url))
     return url
-
-
-async def run_async_or_thread(handler: Callable, *args: Any, **kwargs: Any) -> Any:
-    if iscoroutinefunction(handler):
-        return await handler(*args, **kwargs)
-    return await run_in_threadpool(handler, *args, **kwargs)
