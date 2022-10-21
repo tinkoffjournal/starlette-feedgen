@@ -1,3 +1,18 @@
-*.pyc
+### PyCharm ###
+# User-specific stuff
+/.idea
+/.code
+
+### Python ###
+# Byte-compiled / optimized / DLL files
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
 dist/
+
+# Unit test / coverage reports
+.mypy_cache/
+
+# Environments
 venv/
