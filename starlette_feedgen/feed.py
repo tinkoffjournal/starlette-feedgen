@@ -30,11 +30,11 @@ class FeedEndpoint(HTTPEndpoint, ABC):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         # default attributes for using cached items
-        self.use_cached_items = False
+        self.use_cached_items: bool = False
         self.cached_items: list = []
 
     @abstractmethod
-    async def get_items(self) -> Iterable:
+    async def get_items(self) -> Iterable | AsyncIterable:
         """
         Return items the feed will be populated with.
         """

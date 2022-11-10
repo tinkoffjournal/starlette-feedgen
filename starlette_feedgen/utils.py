@@ -86,8 +86,8 @@ class AsyncXMLGenerator:
         """
         if content:
             await self._finish_pending_start_element()
-            if not isinstance(content, str):
-                content = str(content, self._encoding)
+            if isinstance(content, bytes):
+                content = content.decode(self._encoding)
             await self._write(escape(content))
 
 
