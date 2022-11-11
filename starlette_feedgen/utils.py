@@ -86,14 +86,14 @@ class AsyncXMLGenerator:
         """
         if content:
             await self._finish_pending_start_element()
-            if not isinstance(content, str):
-                content = str(content, self._encoding)
+            if isinstance(content, bytes):
+                content = content.decode(self._encoding)
             await self._write(escape(content))
 
 
 class SimplerXMLGenerator(AsyncXMLGenerator):
     async def addQuickElement(
-        self, name: str, contents: Any = None, attrs: dict = None
+        self, name: str, contents: Any = None, attrs: dict | None = None
     ) -> None:
         """
         Convenience method for adding an element with no children.
@@ -148,7 +148,7 @@ def iri_to_uri(iri: str | None) -> str | None:
     return quote(iri, safe="/#%[]=:;$&()+,!?*@'~")
 
 
-def http_date(epoch_seconds: float = None) -> str:
+def http_date(epoch_seconds: float | None = None) -> str:
     """
     Format the time to match the RFC1123 date format as specified by HTTP
     RFC7231 section 7.1.1.1.

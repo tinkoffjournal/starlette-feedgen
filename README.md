@@ -2,6 +2,10 @@
 Asynchronous RSS/Atom feeds generation for [Starlette](https://www.starlette.io/),
 adapted from [Django syndication feed framework](https://docs.djangoproject.com/en/stable/ref/contrib/syndication/).
 
+Note that in version 0.1.4 and higher we support only Python 3.10+ 
+and all library classes now provide asynchronous methods. If any of these does not meet your needs
+please consider using version 0.1.3 of the library.
+
 ## Installation
 ```sh
 pip install starlette-feedgen
@@ -34,7 +38,7 @@ class Feed(FeedEndpoint):
 
     async def get_items(self):
 
-        async def item_generator():
+        def item_generator():
             yield FeedItem()
 
         return item_generator()

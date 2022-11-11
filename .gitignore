@@ -11,7 +11,7 @@
 # Distribution / packaging
 dist/
 
-# Unit test / coverage reports
+# Unit test / coverage / linters reports
 .mypy_cache/
 
 # Environments

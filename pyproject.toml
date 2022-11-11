@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "async-starlette-feedgen"
+name = "starlette-feedgen"
 version = "0.1.4"
 description = "Asynchronous RSS/Atom feeds generation for Starlette, adapted from Django syndication feed framework."
 license = "MIT"
@@ -19,9 +19,6 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
-]
-packages = [
-    { include = "starlette_feedgen" },
 ]
 
 [tool.poetry.dependencies]
