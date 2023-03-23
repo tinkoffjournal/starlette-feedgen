@@ -1,4 +1,7 @@
-"""RSS/Atom feeds generation for Starlette, adapted from Django syndication feed framework"""
+"""
+Asynchronous RSS/Atom feeds generation for Starlette,
+adapted from Django syndication feed framework
+"""
 
 from .feed import FeedEndpoint, FeedDoesNotExist
 
